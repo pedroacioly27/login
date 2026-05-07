@@ -1,18 +1,22 @@
-import { Request, Response } from "express";
+import bcrypt from "bcrypt";
 import { BadRequestError } from "../helpers/api-erros";
 import { userRepository } from "../repositories/userRepository";
-import bcrypt from "bcrypt";
 
-export class UserController {
-  async create(req: Request, res: Response) {
-    const { name, email, password } = req.body;
-    const userExists = await userRepository.findOneBy({ email });
+interface CreateUserDTO {
+  name: string;
+  email: string;
+  password: string;
+}
 
+export class UserService {
+  async create({ name, email, password }: CreateUserDTO) {
     if (!name || !email || !password) {
       throw new BadRequestError(
         "Missing required fields: name, email, password",
       );
     }
+
+    const userExists = await userRepository.findOneBy({ email });
 
     if (userExists) {
       throw new BadRequestError("Email already in use");
@@ -20,15 +24,16 @@ export class UserController {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await userRepository.create({
+    const newUser = userRepository.create({
       name,
       email,
       password: hashedPassword,
     });
+
     await userRepository.save(newUser);
 
     const { password: _, ...user } = newUser;
 
-    return res.status(201).json(user);
+    return user;
   }
-} 
+}
